@@ -34,7 +34,7 @@ a symlink won't do, Herdr doesn't reload through it). Then add the key from `key
 - Click a commit for its details and files, a file for its diff, Cmd/Ctrl-click a second
   commit to compare, right-click for the context menu. ⌘F finds, the gear opens Repository
   Settings, the Repo dropdown lists submodules.
-- The **Source Control** button in the toolbar docks VS Code's Changes view on the right: a
+- The **Changes** button in the toolbar docks VS Code's Source Control Changes view on the right: a
   commit message and Commit (commits the staged changes, or everything when nothing is staged),
   Staged Changes and Changes with stage / unstage / discard per file or all at once. Click a file
   for its staged or working-tree diff.

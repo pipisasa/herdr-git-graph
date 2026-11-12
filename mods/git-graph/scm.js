@@ -1,11 +1,12 @@
-// Source Control: VS Code's Changes view as a panel docked on the right of the graph.
+// Changes: VS Code's Source Control Changes view as a panel docked on the right of the graph.
 // A message box and Commit, then Staged Changes and Changes with stage / unstage / discard
 // per file and per section. A file opens its diff (staged or working tree) at the bottom.
 // The lists come from the status the graph already reads (view.data.scm), so they refresh with it.
 import { div, svg } from "gpui-kit";
 import { v_flex, h_flex, InputState, Input } from "gpui-base";
 import { openOverlay } from "herdr";
-import { runSteps, scmDiff, diffRows } from "./git.js";
+import { runSteps, scmDiff } from "./git.js";
+import { DiffText } from "./code.js";
 
 const ICON = (n) => `mods/git-graph/${n}.svg`;
 export const SCM_W = 300;
@@ -13,7 +14,7 @@ const color = (t, s) => (s === "A" || s === "U" ? t.ansi2 : s === "D" || s === "
 
 export function initScm(gg, helpers) {
   gg.scmH = helpers;
-  gg.scm = { open: false, message: "", busy: false, note: null, typing: false, hide: {}, file: null, diff: [], diffWidth: 0 };
+  gg.scm = { open: false, message: "", busy: false, note: null, typing: false, hide: {}, file: null, diff: null };
   const s = (gg.scmInput = InputState.new({ placeholder: "Message (Enter to commit)" }));
   s.on("change", (_e, cx) => { const had = Boolean(gg.scm.message.trim()); gg.scm.message = s.value(); if (had !== Boolean(gg.scm.message.trim())) cx.notify(); });
   s.on("submit", (_e, cx) => commit(gg, cx));
@@ -31,7 +32,8 @@ export function toggleScm(gg, cx) {
   cx.notify();
 }
 
-export function closeFile(gg) { gg.scm.file = null; gg.scm.diff = []; }
+export function closeFile(gg) { gg.scm.file = null; clearDiff(gg); }
+function clearDiff(gg) { gg.scm.diff = null; }
 
 // After a refresh: keep the open diff if its file is still on the same side, else close it.
 export function syncScm(gg, cx) {
@@ -47,7 +49,7 @@ function pick(gg, f, staged, cx) {
   const cur = gg.scm.file;
   if (cur && cur.path === f.path && cur.staged === staged) closeFile(gg);
   else {
-    gg.scm.file = { ...f, staged }; gg.scm.diff = [];
+    gg.scm.file = { ...f, staged }; clearDiff(gg);
     gg.expanded = null; gg.compare = null; gg.details = null; gg.openFile = null;
     loadDiff(gg, cx);
   }
@@ -58,12 +60,13 @@ function loadDiff(gg, cx) {
   const f = gg.scm.file, repo = gg.view?.repo;
   if (!f || !repo) return;
   cx.spawn(async (cx) => {
-    let rows;
-    try { rows = diffRows(await scmDiff(repo, f, f.staged)); }
-    catch (e) { rows = diffRows([`Cannot preview this diff: ${e.message ?? e}`]); }
+    let lines;
+    try { lines = await scmDiff(repo, f, f.staged); }
+    catch (e) { lines = [`Cannot preview this diff: ${e.message ?? e}`]; }
     if (gg.scm.file?.path !== f.path || gg.scm.file?.staged !== f.staged) return;
-    gg.scm.diff = rows;
-    gg.scm.diffWidth = Math.max(300, ...rows.map((r) => (r.text.length + 1) * 7 + 90));
+    // Same text after a refresh: keep the editor, its selection and scroll.
+    const text = lines.join("\n");
+    if (gg.scm.diff?.text !== text) gg.scm.diff = new DiffText(lines);
     cx.notify();
   });
 }

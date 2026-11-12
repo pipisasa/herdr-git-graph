@@ -44,9 +44,15 @@ Top to bottom, in one mod pane:
   left Commit / Parents (click to jump) / Author / Committer (if different) / Date and the full
   message; right "Changed Files" with count and +/− totals, each file with its A/M/D/R/U status
   colour, name, folder, +adds −dels. Clicking a file shows its diff (old/new line numbers,
-  green/red rows, hunk headers on `raised`); ≥ 900px wide the file list stays beside the diff.
+  green/red rows, hunk headers on `raised`) with its own text selection: drag, double-click a word,
+  triple-click a line, shift-click extends, ⌘/Ctrl-C copies without the +/− markers, ⌘/Ctrl-A takes
+  it all, Esc clears. Rows are a plain scrolling column (virtual-list rows get no mouse events) with
+  the handlers on the content block, so `local_position` maps to row (18px) and column (0.6em); a
+  refresh with the same text keeps the selection. ≥ 900px wide the file list stays beside the diff.
+  Commit, Author and Date are selectable `TextView.markdown` (drag only); the message is a read-only,
+  soft-wrapped `Editor` filling the rest of the panel (double-click word, triple-click line, ⌘A/⌘C).
   For Uncommitted Changes the left side has a "Commit message" input and "Commit all".
-- **Source Control panel** (toolbar button, or the `scm` command), 300px docked on the right as
+- **Changes panel** (toolbar button, or the `scm` command), 300px docked on the right as
   VS Code's Changes view: a header (Commit ✓, Refresh, Close), a message input (Enter commits) and a
   full-width Commit button ("Commit All" when nothing is staged: `add -A` first), then collapsible
   "Staged Changes" (− unstage, per file and all) and "Changes" (↺ discard and + stage, per file and
@@ -57,7 +63,7 @@ Top to bottom, in one mod pane:
 
 ## How it behaves
 
-- Click a row: open / close its details. Cmd/Ctrl-click a second row: compare the two
+- Click a row: open / close its details (Uncommitted Changes opens the Changes panel). Cmd/Ctrl-click a second row: compare the two
   (older → newer, or → working tree). Right-click a row: its context menu.
 - Keys while focused: ↑ / ↓ select, Enter opens, Cmd/Ctrl-F find (Enter = next), Esc closes the
   find bar, the diff, then the details.

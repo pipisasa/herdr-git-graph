@@ -98,7 +98,7 @@ function parseStatus(out) {
   return files;
 }
 
-/** The Source Control view: staged (index vs HEAD) and unstaged (work tree vs index, plus untracked) files. */
+/** The Changes panel: staged (index vs HEAD) and unstaged (work tree vs index, plus untracked) files. */
 function parseScm(out) {
   const staged = [], unstaged = [], parts = out.split("\0");
   for (let i = 0; i < parts.length; i++) {
@@ -175,23 +175,6 @@ export async function fileDiff(repo, from, to, file) {
   const all = out.replace(/\n$/, "").split("\n"), first = all.findIndex((l) => l.startsWith("@@"));
   if (first < 0) return [file.binary ? "Binary file changed" : "No text diff available"];
   return all.slice(first, first + 3000).map((l) => (l.length > 4000 ? l.slice(0, 4000) + "… (line truncated)" : l));
-}
-
-// Text draws a tab as nothing: pad each to the next 4-column stop.
-const untab = (text) => text.replace(/[^\t]*\t/g, (s) => s.slice(0, -1).padEnd((s.length - 1) - (s.length - 1) % 4 + 4));
-
-/** Numbers each diff line once, so a frame only draws the rows on screen. */
-export function diffRows(lines) {
-  let old = 0, next = 0;
-  return lines.map((line) => {
-    const match = /^@@ -(\d+)(?:,\d+)? \+(\d+)/.exec(line);
-    if (match) { old = +match[1]; next = +match[2]; return { kind: "@", text: line }; }
-    const kind = line[0];
-    if (kind === "-") return { kind, old: old++, text: untab(line.slice(1)) || " " };
-    if (kind === "+") return { kind, number: next++, text: untab(line.slice(1)) || " " };
-    if (kind === " ") return { kind, old: old++, number: next++, text: untab(line.slice(1)) || " " };
-    return { kind: "", text: line };
-  });
 }
 
 /** Runs action steps in order; stops at the first failure. Steps: string[] (git args). */

@@ -184,7 +184,7 @@ export function action(name, target, ctx) {
       title: "Clean Untracked Files", danger: true, text: "Delete all untracked files?",
       fields: [check("dirs", "Also directories (-d)", true)], steps: (v) => [["clean", "-f", ...(v.dirs ? ["-d"] : [])]],
     },
-    // Source Control: target { path, untracked } for one file, or { all: true, tracked, untracked } for every unstaged change.
+    // Changes panel: target { path, untracked } for one file, or { all: true, tracked, untracked } for every unstaged change.
     discardFile: {
       title: "Discard Changes", danger: true,
       text: t.untracked ? `Delete the untracked file ${t.path}? This can't be undone.` : `Discard the unstaged changes in ${t.path}? This can't be undone.`,
