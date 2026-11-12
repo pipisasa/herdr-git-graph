@@ -4,7 +4,7 @@ A commit graph for Herdr that looks and works like the Git Graph extension for V
 (mhutchie): coloured branch lanes with curved merges, ref badges, Date / Author / Commit
 columns, a commit details panel with changed files and diffs, a branch filter, find, fetch,
 repository settings and the full Git Graph context menus (checkout, merge, rebase,
-cherry-pick, revert, reset, push, stashes…). `ctrl-shift-g` opens it over everything for the
+cherry-pick, revert, reset, push, stashes…). `cmd-g` (Super+G on Linux / Windows) opens it over everything for the
 repo of the focused terminal; ⤢ moves it into a tab.
 
 ![Git Graph](preview.png)
@@ -74,7 +74,7 @@ Top to bottom, in one mod pane:
   edit name / fetch / push URL, delete with confirmation, Add Remote).
 - It refreshes on a folder watch of the repo (debounced 1.2s; local machines), every 10s, and
   after any action. Remote spaces run git on their machine.
-- `ctrl-shift-g` (`keys.json`: `mod.open:git-graph`) opens it as the dialog `mod.json`
+- `cmd-g` (Super+G on Linux / Windows) (`keys.json`: `mod.open:git-graph`) opens it as the dialog `mod.json`
   describes (94% × 90% of the window); again or Esc closes it. ⤢ opens a tab pinned to the repo
   and closes the dialog.
 - Which repo: `props.folder` if given; else the focused terminal pane's folder (under the

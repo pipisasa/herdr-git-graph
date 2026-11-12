@@ -20,12 +20,12 @@ a symlink won't do, Herdr doesn't reload through it). Then add the key from `key
 `~/.config/herdr-app/keys.json`:
 
 ```json
-{ "global": { "ctrl-shift-g": "mod.open:git-graph" } }
+{ "global": { "cmd-g": "mod.open:git-graph" } }
 ```
 
 ## Use
 
-- **`ctrl-shift-g`** opens the graph over everything, for the repo of the terminal you are in;
+- **`cmd-g`** (Super+G on Linux / Windows) opens the graph over everything, for the repo of the terminal you are in;
   press it again (or Esc) to close. **⤢** moves it into a tab.
 - As a tab from a shell: `herdr-app do tab.new '{"mod":"git-graph","name":"Git Graph","props":{"tab":true}}'`,
   or pinned to a repo with `"props":{"folder":"/path/to/repo"}`.

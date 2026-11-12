@@ -44,7 +44,7 @@ and after the Changes button line (`.when(enabled.includes("changes"), …)`):
 The button opens the graph as a tab, or goes to it if the space already has one. To have
 the Changes button gone, delete its line.
 
-Prefer the graph as a window over everything (like `ctrl-shift-g`)? Use
+Prefer the graph as a window over everything (like `cmd-g` (Super+G on Linux / Windows))? Use
 `.on_click(() => run("mod.open", { name: "git-graph" }))` instead.
 
 ## 3. Optional: a graph icon on the tab
