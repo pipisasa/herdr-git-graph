@@ -60,6 +60,13 @@ Top to bottom, in one mod pane:
   come from the same `git status` the graph reads (X = staged side, Y = working tree). Discard asks
   first in a danger dialog (`checkout -- path`, or `clean -f` for untracked). A clicked file shows its
   staged (`diff --cached`) or working-tree diff in the bottom panel, in place of the details.
+- **✦ Generate Commit Message** (sparkles, inside the message box, which is a Textarea growing 1–8
+  rows; ⌘/Ctrl-Enter commits). No agent chosen yet (shared `git-graph.ai`): a popup "Generate commit
+  message with" lists Claude CLI (`claude -p`) and a disabled "Other (soon…)"; a pick saves it and
+  generates (via shared `git-graph.ai-run`, since the popup is its own view). Right-click ✦: a popup
+  with "Configure AI Agent…" (the same list, saving only). Generation pipes recent subjects, status
+  and the diff (staged, else against HEAD; 200 KB cap) into `claude -p "<prompt>"` with `sh -c`;
+  the spinner replaces ✦ meanwhile and errors show under Commit.
 
 ## How it behaves
 

@@ -38,6 +38,10 @@ a symlink won't do, Herdr doesn't reload through it). Then add the key from `key
   commit message and Commit (commits the staged changes, or everything when nothing is staged),
   Staged Changes and Changes with stage / unstage / discard per file or all at once. Click a file
   for its staged or working-tree diff.
+- **✦** in the message box generates the commit message with an AI agent from the diff (staged,
+  else everything). The first click asks which agent: **Claude CLI** (`claude -p`, needs the
+  [Claude Code](https://claude.com/claude-code) CLI signed in); more are coming. Right-click ✦ to
+  change it. Enter is a new line in the message, ⌘/Ctrl-Enter commits.
 - Key commands for `keys.json` while the graph is shown (`"<key>": "git-graph:<command>"`):
   `down`, `up`, `toggle`, `compare`, `menu`, `find`, `scm`, `fetch`, `refresh`, `repos`, `settings`, `close`.
 

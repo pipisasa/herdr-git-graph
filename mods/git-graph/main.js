@@ -11,6 +11,7 @@ import { DiffText, textMarkdown } from "./code.js";
 import { layoutGraph, graphCell, graphWidth, ROW, LANE } from "./graph.js";
 import { menuItems, action } from "./actions.js";
 import { initSettings, renderSettings } from "./settings.js";
+import { renderAiMenu, checkAiRequest } from "./ai.js";
 import { initScm, renderScm, toggleScm, syncScm, closeFile, SCM_W } from "./scm.js";
 
 const ICON = (n) => `mods/git-graph/${n}.svg`;
@@ -335,6 +336,7 @@ export default class GitGraph extends View {
     if (this.role === "menu") return this.renderMenu(cx);
     if (this.role === "dialog") return this.renderDialog(cx);
     if (this.contextKey() !== this.key) this.refresh(cx);
+    checkAiRequest(this, cx);
     const t = theme(), v = this.view, W = this.mainWidth();
     const cols = { date: W >= 640, author: W >= 800, hash: W >= 500 };
     const framed = !props()?.folder && !props()?.tab && !props()?.overlay; // tabs and overlays have Herdr's frame
@@ -641,6 +643,7 @@ export default class GitGraph extends View {
     const p = props(), t = theme();
     if (p.menu === "branches") return this.renderBranches(p, t);
     if (p.menu === "repos") return this.renderRepos(p, t);
+    if (p.menu === "ai" || p.menu === "ai-config") return renderAiMenu(this, p, t);
     const clean = menuList(p.menu, p.target, p.ctx, p.refs);
     return v_flex().id("gg-menu").size_full().p(6).bg(t.popover).text_size(12.5).text_color(t.foreground).track_focus(this.handle)
       .on_key_down((e, cx) => { if (e.key === "escape") { closeOverlay(p.overlay); cx.stop_propagation(); } })

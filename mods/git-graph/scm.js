@@ -3,10 +3,11 @@
 // per file and per section. A file opens its diff (staged or working tree) at the bottom.
 // The lists come from the status the graph already reads (view.data.scm), so they refresh with it.
 import { div, svg } from "gpui-kit";
-import { v_flex, h_flex, InputState, Input } from "gpui-base";
-import { openOverlay } from "herdr";
+import { v_flex, h_flex, TextareaState, Textarea } from "gpui-base";
+import { openOverlay, shared } from "herdr";
 import { runSteps, scmDiff } from "./git.js";
 import { DiffText } from "./code.js";
+import { sparkClick, openConfigMenu, agentOf, AGENTS } from "./ai.js";
 
 const ICON = (n) => `mods/git-graph/${n}.svg`;
 export const SCM_W = 300;
@@ -15,9 +16,12 @@ const color = (t, s) => (s === "A" || s === "U" ? t.ansi2 : s === "D" || s === "
 export function initScm(gg, helpers) {
   gg.scmH = helpers;
   gg.scm = { open: false, message: "", busy: false, note: null, typing: false, hide: {}, file: null, diff: null };
-  const s = (gg.scmInput = InputState.new({ placeholder: "Message (Enter to commit)" }));
+  gg.aiSeen = shared("git-graph.ai-run")?.at ?? null;
+  // Multi-line like VS Code's: Enter is a new line, Cmd/Ctrl-Enter commits; grows to 8 rows.
+  const s = (gg.scmInput = TextareaState.new({ placeholder: "Message (⌘Enter to commit)", rows: 1 }));
+  s.set_auto_grow(1, 8);
   s.on("change", (_e, cx) => { const had = Boolean(gg.scm.message.trim()); gg.scm.message = s.value(); if (had !== Boolean(gg.scm.message.trim())) cx.notify(); });
-  s.on("submit", (_e, cx) => commit(gg, cx));
+  s.on("submit", (e, cx) => { if (e.secondary) commit(gg, cx); });
   s.on("focus", (_e, cx) => { gg.typing = true; gg.scm.typing = true; cx.notify(); });
   s.on("blur", (_e, cx) => { gg.typing = false; gg.scm.typing = false; cx.notify(); });
 }
@@ -98,6 +102,18 @@ export function commit(gg, cx) {
   });
 }
 
+// ✦ Generate Commit Message: left click generates (picking an agent the first time), right click configures.
+function spark(gg, t) {
+  const agent = AGENTS.find((a) => a.id === agentOf());
+  return div().id("gg-scm-spark").size(22).flex_none().flex().items_center().justify_center().rounded(5).cursor_pointer().text_color(gg.scm.generating ? t.accent : t.muted)
+    .hover((x) => x.bg(t.hover).text_color(t.foreground))
+    .tooltip(gg.scm.generating ? "Generating…" : `Generate Commit Message${agent ? ` (${agent.label})` : ""} · right-click to configure`)
+    .on_mouse_down("left", (_e, cx) => cx.stop_propagation())
+    .on_mouse_down("right", (_e, cx) => { cx.stop_propagation(); openConfigMenu(gg); })
+    .on_click((_e, cx) => { cx.stop_propagation(); sparkClick(gg, cx); })
+    .child(gg.scm.generating ? svg(ICON("spinner")).size(14).spin(900) : svg(ICON("sparkles")).size(14));
+}
+
 function button(t, id, icon, tip, onClick, size = 22) {
   return div().id(id).size(size).flex_none().flex().items_center().justify_center().rounded(5).cursor_pointer().text_color(t.muted)
     .hover((s) => s.bg(t.hover).text_color(t.foreground)).tooltip(tip)
@@ -142,8 +158,10 @@ export function renderScm(gg, t) {
       .child(button(t, "gg-scm-refresh", "refresh", "Refresh", (cx) => { gg.scmH.bump(); gg.refresh(cx); }))
       .child(button(t, "gg-scm-close", "x", "Close", (cx) => toggleScm(gg, cx))))
     .child(v_flex().flex_none().p(8).gap(6)
-      .child(div().id("gg-scm-message").w_full().h(30).px(8).flex().items_center().rounded(6).border_1().border_color(s.typing ? t.accent : t.input).bg(t.background).cursor_text()
-        .on_mouse_down("left", (_e, cx) => cx.stop_propagation()).child(Input.new(gg.scmInput).h_full().text_size(12).text_color(t.foreground)))
+      .child(h_flex().id("gg-scm-message").w_full().min_h(30).pl(8).pr(3).py(3).gap(4).items_start().rounded(6).border_1().border_color(s.typing ? t.accent : t.input).bg(t.background).cursor_text()
+        .on_mouse_down("left", (_e, cx) => cx.stop_propagation())
+        .child(div().flex_1().min_w(0).pt(3).child(Textarea.new(gg.scmInput).w_full().text_size(12).text_color(t.foreground)))
+        .child(spark(gg, t)))
       .child(h_flex().id("gg-scm-commit").w_full().h(28).gap(6).items_center().justify_center().rounded(6)
         .bg(can ? t.solid : t.raised).text_color(can ? t.solid_foreground : t.dim).text_size(12)
         .when(can, (e) => e.cursor_pointer().hover((x) => x.opacity(0.9)))
