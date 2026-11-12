@@ -10,6 +10,7 @@ import { findRoot, listRepos, loadRepo, commitInfo, changedFiles, fileDiff, diff
 import { layoutGraph, graphCell, graphWidth, ROW, LANE } from "./graph.js";
 import { menuItems, action } from "./actions.js";
 import { initSettings, renderSettings } from "./settings.js";
+import { initScm, renderScm, toggleScm, syncScm, closeFile, SCM_W } from "./scm.js";
 
 const ICON = (n) => `mods/git-graph/${n}.svg`;
 const PAGE = 300;
@@ -78,6 +79,7 @@ export default class GitGraph extends View {
     this.findInput.on("submit", (_e, cx) => { this.step(1); cx.notify(); });
     this.findInput.on("focus", (_e, cx) => { this.typing = true; cx.notify(); });
     this.findInput.on("blur", (_e, cx) => { this.typing = false; cx.notify(); });
+    initScm(this, { bump });
     this.refresh(cx);
     cx.timer.every(10000, (cx) => this.refresh(cx));
     // Key commands ("<key>": "git-graph:<command>" in keys.json, or `herdr-app do git-graph.<command>`).
@@ -92,6 +94,7 @@ export default class GitGraph extends View {
     else if (c === "repos") this.openRepos();
     else if (c === "settings") this.openSettings();
     else if (c === "find") { this.finding = true; this.findInput.focus(); }
+    else if (c === "scm") toggleScm(this, cx);
     else if (!v) return;
     else if (c === "down" || c === "up") { this.sel = Math.max(0, Math.min(v.list.length - 1, this.sel + (c === "down" ? 1 : -1))); this.reveal(this.sel); }
     else if (c === "toggle" && this.sel >= 0) this.toggle(v.list[this.sel].hash, cx, false);
@@ -110,7 +113,7 @@ export default class GitGraph extends View {
     const loc = location(), key = this.contextKey(), where = JSON.stringify(loc);
     if (where !== this.where) {
       this.where = where; this.view = null; this.root = null; this.error = null; this.expanded = null; this.compare = null;
-      this.details = null; this.openFile = null; this.diff = []; this.sel = -1; this.max = PAGE; this.watched = null; this.message = ""; this.commitInput.set_value("");
+      this.details = null; this.openFile = null; this.diff = []; this.sel = -1; this.max = PAGE; this.watched = null; this.message = ""; this.commitInput.set_value(""); closeFile(this);
     }
     this.key = key;
     if (!loc.cwd) return;
@@ -143,6 +146,7 @@ export default class GitGraph extends View {
         if (this.expanded && !(this.expanded in index)) { this.expanded = null; this.compare = null; this.details = null; this.openFile = null; }
         if (this.expanded === UNCOMMITTED || this.compare === UNCOMMITTED) this.loadDetails(cx, true);
         if (this.query) this.runFind(false);
+        syncScm(this, cx);
         this.watch(repo, cx);
       } catch (e) { if (JSON.stringify(location()) === where) this.error = String(e.message ?? e); }
       finally {
@@ -173,6 +177,7 @@ export default class GitGraph extends View {
     else if (this.expanded === hash) { this.expanded = null; this.compare = null; }
     else { this.expanded = hash; this.compare = null; }
     this.details = null; this.openFile = null; this.diff = [];
+    if (this.expanded) closeFile(this);
     if (this.view && this.expanded) { this.sel = this.view.index[this.expanded]; this.loadDetails(cx, false); }
     cx.notify();
   }
@@ -312,7 +317,7 @@ export default class GitGraph extends View {
     if (this.role === "menu") return this.renderMenu(cx);
     if (this.role === "dialog") return this.renderDialog(cx);
     if (this.contextKey() !== this.key) this.refresh(cx);
-    const t = theme(), v = this.view, W = this.size.width;
+    const t = theme(), v = this.view, W = this.mainWidth();
     const cols = { date: W >= 640, author: W >= 800, hash: W >= 500 };
     const framed = !props()?.folder && !props()?.tab && !props()?.overlay; // tabs and overlays have Herdr's frame
     return v_flex().id("git-graph").size_full().min_h(0).overflow_hidden().when(framed, (e) => e.rounded(10).border_1().border_color(t.border)).bg(t.background).text_color(t.foreground).text_size(12.5)
@@ -323,9 +328,26 @@ export default class GitGraph extends View {
       .on_modifiers_changed((e) => { this.mods = e.modifiers; })
       .child(this.toolbar(t, v, cx))
       .when(this.finding, (el) => el.child(this.findBar(t)))
-      .child(this.header(t, cols, v))
-      .child(this.table(t, cols, v, cx))
-      .when(Boolean(v && this.expanded), (el) => el.child(this.detailsPanel(t, v, Math.round(Math.max(220, Math.min(560, this.size.height * 0.45))))));
+      .child(h_flex().flex_1().min_h(0).w_full()
+        .child(v_flex().flex_1().min_w(0).h_full()
+          .child(this.header(t, cols, v))
+          .child(this.table(t, cols, v, cx))
+          .when(Boolean(v && this.scm.file), (el) => el.child(this.scmDiffPanel(t, this.panelHeight())))
+          .when(Boolean(v && this.expanded && !this.scm.file), (el) => el.child(this.detailsPanel(t, v, this.panelHeight()))))
+        .when(this.scm.open, (el) => el.child(renderScm(this, t))));
+  }
+
+  // The graph's width: the window less the Source Control panel.
+  mainWidth() { return this.size.width - (this.scm?.open ? SCM_W : 0); }
+  panelHeight() { return Math.round(Math.max(220, Math.min(560, this.size.height * 0.45))); }
+
+  scmDiffPanel(t, DH) {
+    const f = this.scm.file;
+    return h_flex().id("gg-scm-diff").h(DH).flex_none().w_full().border_t(1).border_color(t.accent + "88").bg(t.surface)
+      .child(div().flex_1().min_w(0).h_full().child(this.diffView(t, true, {
+        file: f, rows: this.scm.diff, width: this.scm.diffWidth, note: f.staged ? "Staged" : f.untracked ? "Untracked" : "Working Tree",
+        close: () => closeFile(this),
+      })));
   }
 
   key_(e, cx) {
@@ -334,6 +356,7 @@ export default class GitGraph extends View {
     if (e.key === "escape") {
       if (this.typing) { this.typing = false; this.handle.focus(); }
       else if (this.finding) { this.finding = false; this.query = ""; this.findInput.set_value(""); this.matches = []; }
+      else if (this.scm.file) closeFile(this);
       else if (this.openFile) { this.openFile = null; this.diff = []; }
       else if (this.expanded) { this.expanded = null; this.compare = null; this.details = null; }
       else return;
@@ -371,6 +394,7 @@ export default class GitGraph extends View {
         .child(box(cfg.remotes)).child(div().font_bold().text_color(t.foreground).child("Show Remote Branches"))))
       .child(div().flex_1())
       .when(this.loading && !v, (e) => e.child(svg("mods/git-graph/spinner.svg").size(13).text_color(t.dim).spin(900)))
+      .child(this.iconButton(t, "gg-scm", "source-control", `Source Control${v?.data.changes.length ? ` (${v.data.changes.length} changes)` : ""}`, (cx) => toggleScm(this, cx), { on: this.scm.open }))
       .child(this.iconButton(t, "gg-find", "search", "Find (⌘F)", (cx) => { this.finding = !this.finding; if (this.finding) this.findInput.focus(); cx.notify(); }, { on: this.finding }))
       .child(this.iconButton(t, "gg-term", "terminal", "Open a Terminal for this Repository", () => this.root && run("terminal.open", { folder: this.root, place: "down" })))
       .child(this.iconButton(t, "gg-settings", "settings", "Repository Settings", () => this.openSettings()))
@@ -404,7 +428,7 @@ export default class GitGraph extends View {
   }
 
   graphLanes(v) {
-    const cap = Math.max(3, Math.floor((this.size.width * 0.22) / LANE));
+    const cap = Math.max(3, Math.floor((this.mainWidth() * 0.22) / LANE));
     return Math.min(v?.graph.width ?? 1, cap);
   }
 
@@ -506,7 +530,7 @@ export default class GitGraph extends View {
     const files = this.fileList(t, d);
     if (this.openFile) {
       return panel.when(wide, (e) => e.child(div().w(320).flex_none().h_full().border_r(1).border_color(t.border).child(files)))
-        .child(div().flex_1().min_w(0).h_full().child(this.diffView(t, wide)));
+        .child(div().flex_1().min_w(0).h_full().child(this.diffView(t, wide, { file: this.openFile, rows: this.diff, width: this.diffWidth, close: () => { this.openFile = null; this.diff = []; } })));
     }
     return panel.child(div().flex_1().min_w(0).h_full().border_r(1).border_color(t.border).child(this.meta(t, v, d)))
       .child(div().flex_1().min_w(0).h_full().child(files))
@@ -573,8 +597,8 @@ export default class GitGraph extends View {
         .child(Scrollbar.vertical("gg-files").absolute().inset_0()));
   }
 
-  diffView(t, wide) {
-    const f = this.openFile, mono = settings().font_family ?? "JetBrains Mono";
+  diffView(t, wide, { file: f, rows, width, note, close }) {
+    const mono = settings().font_family ?? "JetBrains Mono";
     const row = ({ kind, number, old, text }) => {
       if (kind === "@") return div().w_full().px(12).h(18).flex_none().truncate().bg(t.raised).text_color(t.dim).child(text);
       return h_flex().w_full().h(18).flex_none().gap(8).when(kind === "+", (e) => e.bg(t.ansi2 + "1c")).when(kind === "-", (e) => e.bg(t.ansi1 + "1c"))
@@ -585,16 +609,17 @@ export default class GitGraph extends View {
     };
     return v_flex().size_full().min_h(0)
       .child(h_flex().h(32).flex_none().px(8).gap(6).items_center().border_b(1).border_color(t.border)
-        .when(!wide, (e) => e.child(this.textButton(t, "gg-diff-back", "←", (cx) => { this.openFile = null; this.diff = []; cx.notify(); })))
+        .when(!wide, (e) => e.child(this.textButton(t, "gg-diff-back", "←", (cx) => { close(); cx.notify(); })))
         .child(div().w(12).text_size(11).text_color(statusColor(t, f.status)).child(f.status))
         .child(div().flex_1().min_w(0).truncate().text_size(12).child(f.old ? `${f.old} → ${f.path}` : f.path))
-        .child(this.iconButton(t, "gg-diff-close", "x", "Close diff", (cx) => { this.openFile = null; this.diff = []; cx.notify(); })))
+        .when(Boolean(note), (e) => e.child(div().px(6).rounded(4).border_1().border_color(t.border).text_size(10.5).text_color(t.muted).child(note)))
+        .child(this.iconButton(t, "gg-diff-close", "x", "Close diff", (cx) => { close(); cx.notify(); })))
       .child(div().flex_1().min_h(0).relative().font_family(mono).text_size(11.5)
         .child(div().id("gg-diff-x").size_full().overflow_x_scrollbar()
-          .child(div().w_full().min_w(this.diffWidth).h_full().child(v_virtual_list("gg-diff", this.diff.length, 18, (i) => String(i),
-            (range) => this.diff.slice(range.start, range.end).map(row)).size_full())))
+          .child(div().w_full().min_w(width).h_full().child(v_virtual_list("gg-diff", rows.length, 18, (i) => String(i),
+            (range) => rows.slice(range.start, range.end).map(row)).size_full())))
         .child(Scrollbar.vertical("gg-diff").viewport_from_layout().absolute().inset_0())
-        .when(!this.diff.length, (e) => e.child(div().absolute().top(8).px(12).text_color(t.dim).child("Loading diff…"))));
+        .when(!rows.length, (e) => e.child(div().absolute().top(8).px(12).text_color(t.dim).child("Loading diff…"))));
   }
 
   // ---------------------------------------------------------------- menu role

@@ -80,7 +80,7 @@ export async function loadRepo(repo, opts) {
       if (at >= 0) commits.splice(at, 0, { hash, parents: [p0], author, email, date: Number(date), subject, stash: name });
     }
   }
-  return { head, headBranch, remotes, refs, branches, remoteBranches, tags, commits, more, changes };
+  return { head, headBranch, remotes, refs, branches, remoteBranches, tags, commits, more, changes, scm: parseScm(statusOut) };
 }
 
 function parseStatus(out) {
@@ -96,6 +96,33 @@ function parseStatus(out) {
     files.push({ path, old, status: status === "U?" ? "A" : status, untracked: xy === "??", conflict });
   }
   return files;
+}
+
+/** The Source Control view: staged (index vs HEAD) and unstaged (work tree vs index, plus untracked) files. */
+function parseScm(out) {
+  const staged = [], unstaged = [], parts = out.split("\0");
+  for (let i = 0; i < parts.length; i++) {
+    const e = parts[i];
+    if (!e) continue;
+    const x = e[0], y = e[1], path = e.slice(3);
+    const old = x === "R" || x === "C" ? parts[++i] : null;
+    if (x === "?" && y === "?") { unstaged.push({ path, old: null, status: "U", untracked: true }); continue; }
+    const conflict = x === "U" || y === "U" || (x === "A" && y === "A") || (x === "D" && y === "D");
+    if (conflict) { unstaged.push({ path, old: null, status: "!", conflict: true }); continue; }
+    if (x !== " ") staged.push({ path, old, status: x === "C" ? "A" : x === "T" ? "M" : x });
+    if (y !== " ") unstaged.push({ path, old: null, status: y === "T" ? "M" : y });
+  }
+  return { staged, unstaged };
+}
+
+/** Diff of one file on one side: staged (HEAD → index) or unstaged (index → work tree). */
+export async function scmDiff(repo, file, staged) {
+  if (!staged && file.untracked) return fileDiff(repo, "HEAD", null, file);
+  const paths = file.old ? [file.old, file.path] : [file.path];
+  const out = await git(repo, ["diff", ...(staged ? ["--cached"] : []), "-M", "--no-ext-diff", "--no-textconv", "--no-color", "--", ...paths]);
+  const all = out.replace(/\n$/, "").split("\n"), first = all.findIndex((l) => l.startsWith("@@"));
+  if (first < 0) return [/^Binary files/m.test(out) ? "Binary file changed" : "No text diff available"];
+  return all.slice(first, first + 3000).map((l) => (l.length > 4000 ? l.slice(0, 4000) + "… (line truncated)" : l));
 }
 
 /** Full commit info: body, committer and parents. */

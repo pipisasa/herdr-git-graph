@@ -184,6 +184,17 @@ export function action(name, target, ctx) {
       title: "Clean Untracked Files", danger: true, text: "Delete all untracked files?",
       fields: [check("dirs", "Also directories (-d)", true)], steps: (v) => [["clean", "-f", ...(v.dirs ? ["-d"] : [])]],
     },
+    // Source Control: target { path, untracked } for one file, or { all: true, tracked, untracked } for every unstaged change.
+    discardFile: {
+      title: "Discard Changes", danger: true,
+      text: t.untracked ? `Delete the untracked file ${t.path}? This can't be undone.` : `Discard the unstaged changes in ${t.path}? This can't be undone.`,
+      fields: [], steps: () => [t.untracked ? ["clean", "-f", "--", t.path] : ["checkout", "--", t.path]],
+    },
+    discardAll: {
+      title: "Discard All Changes", danger: true,
+      text: `Discard all unstaged changes${t.untracked ? " and delete every untracked file" : ""}? Staged changes are kept. This can't be undone.`,
+      fields: [], steps: () => [...(t.tracked ? [["checkout", "--", "."]] : []), ...(t.untracked ? [["clean", "-fd"]] : [])],
+    },
     applyStash: {
       title: "Apply Stash", text: `Apply ${t.stash}?`, fields: [check("index", "Reinstate index")],
       steps: (v) => [["stash", "apply", ...(v.index ? ["--index"] : []), t.stash]],

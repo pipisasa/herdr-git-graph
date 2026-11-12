@@ -46,6 +46,14 @@ Top to bottom, in one mod pane:
   colour, name, folder, +adds −dels. Clicking a file shows its diff (old/new line numbers,
   green/red rows, hunk headers on `raised`); ≥ 900px wide the file list stays beside the diff.
   For Uncommitted Changes the left side has a "Commit message" input and "Commit all".
+- **Source Control panel** (toolbar button, or the `scm` command), 300px docked on the right as
+  VS Code's Changes view: a header (Commit ✓, Refresh, Close), a message input (Enter commits) and a
+  full-width Commit button ("Commit All" when nothing is staged: `add -A` first), then collapsible
+  "Staged Changes" (− unstage, per file and all) and "Changes" (↺ discard and + stage, per file and
+  all; untracked files are U, conflicts ! with + = mark resolved), each with a count pill. Lists
+  come from the same `git status` the graph reads (X = staged side, Y = working tree). Discard asks
+  first in a danger dialog (`checkout -- path`, or `clean -f` for untracked). A clicked file shows its
+  staged (`diff --cached`) or working-tree diff in the bottom panel, in place of the details.
 
 ## How it behaves
 
