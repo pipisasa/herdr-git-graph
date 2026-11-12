@@ -11,8 +11,8 @@ import { DiffText, textMarkdown } from "./code.js";
 import { layoutGraph, graphCell, graphWidth, ROW, LANE } from "./graph.js";
 import { menuItems, action } from "./actions.js";
 import { initSettings, renderSettings } from "./settings.js";
-import { renderAiMenu, checkAiRequest } from "./ai.js";
-import { initScm, renderScm, toggleScm, syncScm, closeFile, SCM_W } from "./scm.js";
+import { renderAiMenu, checkAiRequest, sparkClick } from "./ai.js";
+import { initScm, renderScm, toggleScm, syncScm, closeFile, pickFirst, SCM_W } from "./scm.js";
 
 const ICON = (n) => `mods/git-graph/${n}.svg`;
 const PAGE = 300;
@@ -97,11 +97,13 @@ export default class GitGraph extends View {
     else if (c === "settings") this.openSettings();
     else if (c === "find") { this.finding = true; this.findInput.focus(); }
     else if (c === "scm") toggleScm(this, cx);
+    else if (c === "generate") { if (!this.scm.open) toggleScm(this, cx); sparkClick(this, cx); }
     else if (!v) return;
     else if (c === "down" || c === "up") { this.sel = Math.max(0, Math.min(v.list.length - 1, this.sel + (c === "down" ? 1 : -1))); this.reveal(this.sel); }
     else if (c === "toggle" && this.sel >= 0) this.toggle(v.list[this.sel].hash, cx, false);
     else if (c === "compare" && this.sel >= 0) this.toggle(v.list[this.sel].hash, cx, true);
     else if (c === "file" && this.details?.files.length) this.pickFile(this.details.files[0], cx);
+    else if (c === "file" && this.scm.open) pickFirst(this, cx);
     else if (c === "menu" && this.sel >= 0) { const x = v.list[this.sel]; this.openMenu(x.uncommitted ? "uncommitted" : "commit", x); }
     else if (c === "close") { this.expanded = null; this.compare = null; this.details = null; this.openFile = null; }
   }

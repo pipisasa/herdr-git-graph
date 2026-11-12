@@ -49,6 +49,12 @@ export function syncScm(gg, cx) {
   loadDiff(gg, cx);
 }
 
+// The `file` command with the panel open: the first staged file, else the first change.
+export function pickFirst(gg, cx) {
+  const { staged, unstaged } = lists(gg);
+  if (staged.length) pick(gg, staged[0], true, cx); else if (unstaged.length) pick(gg, unstaged[0], false, cx);
+}
+
 function pick(gg, f, staged, cx) {
   const cur = gg.scm.file;
   if (cur && cur.path === f.path && cur.staged === staged) closeFile(gg);

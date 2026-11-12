@@ -44,7 +44,7 @@ a symlink won't do, Herdr doesn't reload through it). Then add the key from `key
   the model: Haiku (the default), Sonnet, Opus, or your Claude Code default. Right-click ✦ to
   change either. Enter is a new line in the message, ⌘/Ctrl-Enter commits.
 - Key commands for `keys.json` while the graph is shown (`"<key>": "git-graph:<command>"`):
-  `down`, `up`, `toggle`, `compare`, `menu`, `find`, `scm`, `fetch`, `refresh`, `repos`, `settings`, `close`.
+  `down`, `up`, `toggle`, `compare`, `menu`, `find`, `scm`, `generate`, `fetch`, `refresh`, `repos`, `settings`, `close`.
 
 ## Notes
 
