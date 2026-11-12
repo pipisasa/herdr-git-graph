@@ -1,1 +1,1 @@
-{ "place": "none", "title": "Git Graph", "focusable": true }
+{ "place": "none", "title": "Git Graph", "focusable": true, "overlay": { "kind": "dialog", "width": 0.94, "height": 0.9 } }

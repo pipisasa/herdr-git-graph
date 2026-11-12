@@ -4,8 +4,8 @@ A commit graph for Herdr that looks and works like the Git Graph extension for V
 (mhutchie): coloured branch lanes with curved merges, ref badges, Date / Author / Commit
 columns, a commit details panel with changed files and diffs, a branch filter, find, fetch,
 repository settings and the full Git Graph context menus (checkout, merge, rebase,
-cherry-pick, revert, reset, push, stashes…). It opens as a tab, so it gets the whole work
-area.
+cherry-pick, revert, reset, push, stashes…). `ctrl-shift-g` opens it over everything for the
+repo of the focused terminal; ⤢ moves it into a tab.
 
 ![Git Graph](preview.png)
 
@@ -74,10 +74,14 @@ Top to bottom, in one mod pane:
   edit name / fetch / push URL, delete with confirmation, Add Remote).
 - It refreshes on a folder watch of the repo (debounced 1.2s; local machines), every 10s, and
   after any action. Remote spaces run git on their machine.
-- Which repo: `props.folder` if given; else the last focused terminal of the space
-  (`shared("git-graph.focus")[spaceId].cwd`, if a tab bar mod records it), else the focused
-  pane's folder, else every terminal folder of the space (the shown tab's first) until one is a
-  repo. The Repo dropdown's pick wins for its superproject.
+- `ctrl-shift-g` (`keys.json`: `mod.open:git-graph`) opens it as the dialog `mod.json`
+  describes (94% × 90% of the window); again or Esc closes it. ⤢ opens a tab pinned to the repo
+  and closes the dialog.
+- Which repo: `props.folder` if given; else the focused terminal pane's folder (under the
+  dialog, that's the terminal you pressed the key in); in a mod pane (the graph as a tab), the
+  last focused terminal of the space if a tab bar records it in
+  `shared("git-graph.focus")[spaceId].cwd`, else every terminal folder of the space (the shown
+  tab's first) until one is a repo. The Repo dropdown's pick wins for its superproject.
 
 ## Built from
 
@@ -110,11 +114,18 @@ Top to bottom, in one mod pane:
 - `InputState.new` only in `init` or handlers, never in `render`.
 - A mod pane reports its space's folder, not a repo, so don't trust `focused().cwd` there.
 - `exec` has no stdin: Copy pipes through `sh -c 'printf %s "$1" | pbcopy'`.
+- Herdr's tab bar can't take other mods' buttons (Files / Changes are written into `mods/tabs`),
+  and `mod.json` `place` docking wraps the whole layout for top/bottom (breaking
+  `"titlebar": "none"`). So the mod ships a key, and `docs/add-button.md` shows the
+  clone-and-edit for a tab bar button.
+- Herdr doesn't hot-reload a mod folder that is a symlink: install by copying.
 - Not done: Issue Linking and Pull Request Creation from Git Graph's settings; resizable columns.
 
 ## Done when
 
 - `herdr-app check mods/git-graph` passes.
+- `herdr-app do mod.open '{"name":"git-graph"}'` with a terminal in a repo focused shows that
+  repo's graph; again closes it.
 - `herdr-app do tab.new '{"mod":"git-graph","name":"Git Graph","props":{"tab":true}}'` in a
   space with a repo shows its graph; `git log --graph --oneline` has the same topology, and
   branch, remote and tag badges sit on the same commits.

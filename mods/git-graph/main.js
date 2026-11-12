@@ -314,7 +314,7 @@ export default class GitGraph extends View {
     if (this.contextKey() !== this.key) this.refresh(cx);
     const t = theme(), v = this.view, W = this.size.width;
     const cols = { date: W >= 640, author: W >= 800, hash: W >= 500 };
-    const framed = !props()?.folder && !props()?.tab; // a tab pane already has Herdr's frame
+    const framed = !props()?.folder && !props()?.tab && !props()?.overlay; // tabs and overlays have Herdr's frame
     return v_flex().id("git-graph").size_full().min_h(0).overflow_hidden().when(framed, (e) => e.rounded(10).border_1().border_color(t.border)).bg(t.background).text_color(t.foreground).text_size(12.5)
       .track_focus(this.handle)
       .on_size_change((size, cx) => { this.size = size; cx.notify(); })
@@ -379,11 +379,12 @@ export default class GitGraph extends View {
       .when(!props()?.folder && !props()?.tab, (e) => e.child(this.iconButton(t, "gg-full", "expand", "Open as a tab", () => this.fullscreen())));
   }
 
-  // Opens this repo's graph as a tab and closes the side panel, so it gets the whole work area.
+  // Opens this repo's graph as a tab (and closes the overlay it was opened in, if any).
   fullscreen() {
     if (!this.root) return;
+    const overlay = props()?.overlay;
     run("tab.new", { mod: "git-graph", name: `Git Graph · ${basename(this.root)}`, props: { folder: this.root, on: this.view?.repo.on ?? null } });
-    run("layout.hide", { id: "panel" });
+    if (overlay) closeOverlay(overlay);
   }
 
   findBar(t) {

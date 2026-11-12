@@ -10,27 +10,36 @@ revert, reset, push, stashes…).
 
 ## Install
 
-Copy `mods/git-graph/` into `~/.config/herdr-app/mods/`, then check it:
-
 ```sh
-herdr-app check ~/.config/herdr-app/mods/git-graph
+git clone https://github.com/pipisasa/herdr-git-graph
+cd herdr-git-graph && ./install.sh
 ```
 
-Open it as a tab:
+`install.sh` copies `mods/git-graph` into `~/.config/herdr-app/mods/` (run it again to update;
+a symlink won't do, Herdr doesn't reload through it). Then add the key from `keys.json` to your
+`~/.config/herdr-app/keys.json`:
 
-```sh
-herdr-app do tab.new '{"mod":"git-graph","name":"Git Graph","props":{"tab":true}}'
+```json
+{ "global": { "ctrl-shift-g": "mod.open:git-graph" } }
 ```
 
-or pin it to a repo with `"props":{"folder":"/path/to/repo"}`. Key commands for `keys.json`
-(`"<key>": "git-graph:<command>"`): `down`, `up`, `toggle`, `compare`, `menu`, `find`, `fetch`,
-`refresh`, `repos`, `settings`, `close`.
+## Use
+
+- **`ctrl-shift-g`** opens the graph over everything, for the repo of the terminal you are in;
+  press it again (or Esc) to close. **⤢** moves it into a tab.
+- As a tab from a shell: `herdr-app do tab.new '{"mod":"git-graph","name":"Git Graph","props":{"tab":true}}'`,
+  or pinned to a repo with `"props":{"folder":"/path/to/repo"}`.
+- **A button in the tab bar** next to Files / Changes: [docs/add-button.md](docs/add-button.md).
+  Herdr's tab bar can't take buttons from other mods, so it's a two-minute clone-and-edit.
+- Click a commit for its details and files, a file for its diff, Cmd/Ctrl-click a second
+  commit to compare, right-click for the context menu. ⌘F finds, the gear opens Repository
+  Settings, the Repo dropdown lists submodules.
+- Key commands for `keys.json` while the graph is shown (`"<key>": "git-graph:<command>"`):
+  `down`, `up`, `toggle`, `compare`, `menu`, `find`, `fetch`, `refresh`, `repos`, `settings`, `close`.
 
 ## Notes
 
 - It runs `git` (reads never write under `.git`), and `pbcopy` for Copy (macOS only).
-- It picks the repo from the last focused terminal of the space if a tab bar mod records it in
-  `shared("git-graph.focus")` (`{ [spaceId]: { cwd, on } }`), else from the space's terminals.
 - How to rebuild it from scratch: [RECIPE.md](RECIPE.md).
 
 ## License
