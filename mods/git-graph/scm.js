@@ -7,7 +7,7 @@ import { v_flex, h_flex, TextareaState, Textarea } from "gpui-base";
 import { openOverlay, shared } from "herdr";
 import { runSteps, scmDiff } from "./git.js";
 import { DiffText } from "./code.js";
-import { sparkClick, openConfigMenu, agentOf, AGENTS } from "./ai.js";
+import { sparkClick, openConfigMenu, agentOf, AGENTS, modelOf, MODELS } from "./ai.js";
 
 const ICON = (n) => `mods/git-graph/${n}.svg`;
 export const SCM_W = 300;
@@ -104,10 +104,10 @@ export function commit(gg, cx) {
 
 // ✦ Generate Commit Message: left click generates (picking an agent the first time), right click configures.
 function spark(gg, t) {
-  const agent = AGENTS.find((a) => a.id === agentOf());
+  const agent = AGENTS.find((a) => a.id === agentOf()), model = MODELS.find((m) => m.id === modelOf());
   return div().id("gg-scm-spark").size(22).flex_none().flex().items_center().justify_center().rounded(5).cursor_pointer().text_color(gg.scm.generating ? t.accent : t.muted)
     .hover((x) => x.bg(t.hover).text_color(t.foreground))
-    .tooltip(gg.scm.generating ? "Generating…" : `Generate Commit Message${agent ? ` (${agent.label})` : ""} · right-click to configure`)
+    .tooltip(gg.scm.generating ? "Generating…" : `Generate Commit Message${agent ? ` (${agent.label} · ${model.label})` : ""} · right-click to configure`)
     .on_mouse_down("left", (_e, cx) => cx.stop_propagation())
     .on_mouse_down("right", (_e, cx) => { cx.stop_propagation(); openConfigMenu(gg); })
     .on_click((_e, cx) => { cx.stop_propagation(); sparkClick(gg, cx); })

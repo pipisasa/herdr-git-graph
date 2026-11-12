@@ -23,6 +23,17 @@ export const AGENTS = [
   { id: "other", label: "Other (soon…)", soon: true },
 ];
 
+// Claude CLI's --model; "default" passes none (the Claude Code setting). Haiku is plenty for a commit message.
+export const MODELS = [
+  { id: "haiku", label: "Haiku", hint: "fast" },
+  { id: "sonnet", label: "Sonnet" },
+  { id: "opus", label: "Opus" },
+  { id: "default", label: "Default", hint: "Claude Code setting" },
+];
+export const modelOf = () => (shared("git-graph.ai") ?? {}).model ?? "haiku";
+const MENU_H = 26 * (1 + AGENTS.length + 1 + MODELS.length) + 9 + 14;
+const openMenu = (props) => openOverlay({ mod: "git-graph", kind: "popup", width: 280, height: MENU_H, props: { menu: "ai", ...props } });
+
 const PROMPT = [
   "Write a git commit message for the changes on stdin (recent commits, status, then the diff).",
   "Match the style of the recent commits (e.g. Conventional Commits if they use it).",
@@ -34,12 +45,12 @@ const PROMPT = [
 const SCRIPT = `G="git --no-optional-locks -c core.quotepath=false"
 { echo "Recent commits:"; $G log --oneline -12 2>/dev/null; echo; echo "Status:"; $G status --short; echo; echo "Diff:"
   if [ "$2" = staged ]; then $G diff --cached --no-color; else $G diff HEAD --no-color 2>/dev/null || $G diff --no-color; fi
-} | head -c 200000 | claude -p "$1"`;
+} | head -c 200000 | claude -p "$1" \${3:+--model "$3"}`;
 
 export const agentOf = () => (shared("git-graph.ai") ?? {}).agent ?? null;
 
 export function openAgentMenu(gg, configure) {
-  openOverlay({ mod: "git-graph", kind: "popup", width: 260, height: 26 * (AGENTS.length + 1) + 14, props: { menu: "ai", configure, root: gg.root } });
+  openMenu({ configure, root: gg.root });
 }
 
 export function openConfigMenu(gg) {
@@ -70,8 +81,9 @@ export function generate(gg, cx) {
   const root = v.repo.root, t0 = Date.now();
   cx.spawn(async (cx) => {
     try {
-      log(`start ${root} (${staged.length ? "staged" : "all"})`);
-      const r = await exec("sh", ["-c", SCRIPT, "_", PROMPT, staged.length ? "staged" : "all"], { cwd: root, on: v.repo.on, timeout: 180000 });
+      const model = modelOf() === "default" ? "" : modelOf();
+      log(`start ${root} (${staged.length ? "staged" : "all"}, model ${model || "default"})`);
+      const r = await exec("sh", ["-c", SCRIPT, "_", PROMPT, staged.length ? "staged" : "all", model], { cwd: root, on: v.repo.on, timeout: 180000 });
       log(`exit ${r.code} after ${Date.now() - t0}ms · stdout ${r.stdout.length}b · stderr ${JSON.stringify(r.stderr.slice(0, 500))}`);
       if (gg.root !== root) { log("repo changed meanwhile: dropped"); return; }
       if (r.code === 127 || /claude: (command )?not found/.test(r.stderr)) throw new Error("Claude CLI not found: install it (claude.com/claude-code) and sign in");
@@ -96,18 +108,25 @@ export function renderAiMenu(view, p, t) {
   const base = v_flex().id(`gg-${p.menu}`).size_full().p(6).bg(t.popover).text_size(12.5).text_color(t.foreground).track_focus(view.handle)
     .on_key_down((e, cx) => { if (e.key === "escape") { close(); cx.stop_propagation(); } });
   if (p.menu === "ai-config") {
-    return base.child(item("gg-ai-configure", () => { close(); openOverlay({ mod: "git-graph", kind: "popup", width: 260, height: 26 * (AGENTS.length + 1) + 14, props: { menu: "ai", configure: true, root: p.root } }); },
+    return base.child(item("gg-ai-configure", () => { close(); openMenu({ configure: true, root: p.root }); },
       [svg(ICON("settings")).size(13).text_color(t.muted), div().child("Configure AI Agent…")]));
   }
+  // Configuring: picks just save (the ✓ moves) and the popup stays. First click: a pick saves and generates.
+  const pick = (patch) => {
+    setShared("git-graph.ai", { ...(shared("git-graph.ai") ?? {}), ...patch });
+    if (!p.configure) { setShared("git-graph.ai-run", { root: p.root, at: Date.now() }); close(); }
+  };
+  const row = (id, on, label, hint, onClick, enabled = true) => item(id, onClick, [
+    div().w(12).flex_none().text_size(11).text_color(t.accent).child(on ? "✓" : ""),
+    div().flex_1().min_w(0).truncate().child(label),
+    ...(hint ? [div().text_size(11).text_color(t.dim).child(hint)] : []),
+  ], enabled);
+  const heading = (s) => div().h(26).px(10).flex().items_center().text_size(11.5).text_color(t.dim).child(s);
+  const model = modelOf();
   return base
-    .child(div().h(26).px(10).flex().items_center().text_size(11.5).text_color(t.dim).child(p.configure ? "AI agent for commit messages" : "Generate commit message with"))
-    .children(AGENTS.map((a) => item(`gg-ai-${a.id}`, () => {
-      setShared("git-graph.ai", { ...(shared("git-graph.ai") ?? {}), agent: a.id });
-      if (!p.configure) setShared("git-graph.ai-run", { root: p.root, at: Date.now() });
-      close();
-    }, [
-      div().w(12).flex_none().text_size(11).text_color(t.accent).child(current === a.id ? "✓" : ""),
-      div().flex_1().min_w(0).truncate().child(a.label),
-      ...(a.hint ? [div().text_size(11).text_color(t.dim).child(a.hint)] : []),
-    ], !a.soon)));
+    .child(heading(p.configure ? "AI agent for commit messages" : "Generate commit message with"))
+    .children(AGENTS.map((a) => row(`gg-ai-${a.id}`, current === a.id, a.label, a.hint, () => pick({ agent: a.id }), !a.soon)))
+    .child(div().h(1).my(4).mx(4).bg(t.border))
+    .child(heading("Claude model"))
+    .children(MODELS.map((m) => row(`gg-ai-m-${m.id}`, model === m.id, m.label, m.hint, () => pick({ agent: "claude", model: m.id }))));
 }
