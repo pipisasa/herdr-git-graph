@@ -41,11 +41,29 @@ const PROMPT = [
   "Output only the commit message: no code fences, quotes, or commentary.",
 ].join(" ");
 
+// Find claude even when it isn't on Herdr's PATH: the native installer (~/.local/bin, ~/.claude/local),
+// Homebrew, npm/bun/volta/pnpm globals, nvm/fnm nodes, then the login shell's PATH. Its folder goes on
+// PATH first, so an npm install's "#!/usr/bin/env node" finds the node next to it.
+const FIND = `C=$(command -v claude 2>/dev/null)
+if [ -z "$C" ]; then
+  for p in "$HOME/.local/bin/claude" "$HOME/.claude/local/claude" /opt/homebrew/bin/claude /usr/local/bin/claude \\
+    "$HOME/.npm-global/bin/claude" "$HOME/.bun/bin/claude" "$HOME/.volta/bin/claude" "$HOME/Library/pnpm/claude" \\
+    "$HOME/.local/share/pnpm/claude" "$HOME"/.nvm/versions/node/*/bin/claude "$HOME"/.local/state/fnm_multishells/*/bin/claude \\
+    "$HOME"/Library/Application\\ Support/fnm/node-versions/*/installation/bin/claude; do
+    [ -x "$p" ] && C=$p && break
+  done
+fi
+[ -z "$C" ] && C=$("\${SHELL:-/bin/zsh}" -lc 'command -v claude' 2>/dev/null | tail -n 1)
+case "$C" in /*) [ -x "$C" ] || C= ;; *) C= ;; esac
+[ -z "$C" ] && { echo "claude: not found" >&2; exit 127; }
+PATH="\${C%/*}:$PATH"; export PATH`;
+
 // Recent subjects, status and the diff (staged, else everything against HEAD), capped, into the agent.
-const SCRIPT = `G="git --no-optional-locks -c core.quotepath=false"
+const SCRIPT = `${FIND}
+G="git --no-optional-locks -c core.quotepath=false"
 { echo "Recent commits:"; $G log --oneline -12 2>/dev/null; echo; echo "Status:"; $G status --short; echo; echo "Diff:"
   if [ "$2" = staged ]; then $G diff --cached --no-color; else $G diff HEAD --no-color 2>/dev/null || $G diff --no-color; fi
-} | head -c 200000 | claude -p "$1" \${3:+--model "$3"}`;
+} | head -c 200000 | "$C" -p "$1" \${3:+--model "$3"}`;
 
 export const agentOf = () => (shared("git-graph.ai") ?? {}).agent ?? null;
 
